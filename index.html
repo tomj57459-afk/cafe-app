@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Cafe Pro</title>
+  <style>
+    body { font-family: Arial; background:#1e1e2f; color:white; text-align:center; }
+    button { padding:10px; margin:5px; background:orange; border:none; cursor:pointer; }
+    input { padding:8px; margin:5px; }
+    #cart { background:#2c2c3c; padding:10px; margin:10px; white-space:pre-line; }
+  </style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage">
+  <h2>🔐 Login</h2>
+  <input id="username" placeholder="Username"><br>
+  <input id="password" type="password" placeholder="Password"><br>
+  <button onclick="login()">Login</button>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;">
+
+<h2>☕ Cafe Billing</h2>
+
+<input id="itemName" placeholder="Item Name">
+<input id="itemPrice" placeholder="Price"><br>
+
+<button onclick="addItem()">➕ Add</button>
+<button onclick="deleteItem()">❌ Delete</button>
+
+<h3>Menu</h3>
+<div id="menu"></div>
+
+<h3>Cart</h3>
+<div id="cart"></div>
+
+<input id="discount" placeholder="Discount %" type="number">
+
+<br>
+<button onclick="generateBill()">🧾 Generate Bill</button>
+<button onclick="showReport()">📊 Report</button>
+<button onclick="printBill()">🖨 Print</button>
+
+</div>
+
+<script>
+
+// LOGIN
+function login(){
+let u=document.getElementById("username").value;
+let p=document.getElementById("password").value;
+
+if(u==="nikita" && p==="nikita2006"){
+document.getElementById("loginPage").style.display="none";
+document.getElementById("app").style.display="block";
+}else{
+alert("Wrong login");
+}
+}
+
+let cart={};
+
+// LOAD MENU
+function loadMenu(){
+fetch("http://127.0.0.1:3000/menu")
+.then(r=>r.json())
+.then(data=>{
+let m=document.getElementById("menu");
+m.innerHTML="";
+data.forEach(i=>{
+let b=document.createElement("button");
+b.innerText=i.item_name+" ₹"+i.price;
+b.onclick=()=>{
+cart[i.item_name]=(cart[i.item_name]||0)+i.price;
+updateCart();
+};
+m.appendChild(b);
+});
+});
+}
+loadMenu();
+
+// CART
+function updateCart(){
+let t="",total=0;
+for(let i in cart){
+t+=i+" ₹"+cart[i]+"\n";
+total+=cart[i];
+}
+t+="\nTotal ₹"+total;
+document.getElementById("cart").innerText=t;
+}
+
+// BILL (NO UNDEFINED BUG)
+function generateBill(){
+
+let discount=document.getElementById("discount").value;
+
+// FIX
+if(discount === "" || discount === undefined){
+  discount = 0;
+}else{
+  discount = Number(discount);
+}
+
+fetch("http://127.0.0.1:3000/bill",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({cart: cart, discount: discount})
+})
+.then(r=>r.json())
+.then(d=>{
+
+alert(
+"Total ₹"+d.total+
+"\nDiscount "+(d.discount ?? 0)+"%"+
+"\nFinal ₹"+d.final
+);
+
+cart={};
+updateCart();
+
+});
+
+}
+
+// ADD
+function addItem(){
+let n=document.getElementById("itemName").value;
+let p=document.getElementById("itemPrice").value;
+
+fetch("http://127.0.0.1:3000/add-item",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({name:n,price:p})
+}).then(()=>loadMenu());
+}
+
+// DELETE
+function deleteItem(){
+let n=document.getElementById("itemName").value;
+
+fetch("http://127.0.0.1:3000/delete-item",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({name:n})
+}).then(()=>loadMenu());
+}
+
+// REPORT
+function showReport(){
+fetch("http://127.0.0.1:3000/report")
+.then(r=>r.json())
+.then(d=>{
+let t="REPORT\n\n";
+d.forEach(b=>{t+="₹"+b.total+" | "+b.date+"\n";});
+alert(t);
+});
+}
+
+// PRINT
+function printBill(){ window.print(); }
+
+</script>
+
+</body>
+</html>
